@@ -5,12 +5,11 @@ from gtts import gTTS
 import io
 
 st.set_page_config(
-    page_title="Chatbot del Salón",
+    page_title="Voces del Salon",
     page_icon="🎙️",
     layout="wide"
 )
 
-# Diseño
 st.markdown("""
 <style>
 .stApp {
@@ -27,27 +26,25 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🎙️ Chatbot del Salón")
+st.title("🎙️ Voces del Salón")
 st.write(
-    "Un chatbot con la personalidad creada a partir "
-    "de los gustos y características de nuestros compañeros."
+    "Un chatbot de voz creado con los gustos y "
+    "la personalidad de nuestros compañeros."
 )
 
-# PREGUNTAS DE LA ENTREVISTA
-st.sidebar.header("📋 Entrevista a los compañeros")
+# DATOS DE LAS ENTREVISTAS
+st.sidebar.header("📋 Entrevistas")
 
 with st.sidebar.form("entrevista"):
     nombre = st.text_input("Nombre o código del compañero")
-    cancion = st.text_input("¿Cuál es tu canción favorita?")
-    pelicula = st.text_input("¿Qué películas te gustan?")
-    deporte = st.text_input("¿Cuál es tu deporte favorito?")
-    materia = st.text_input("¿Cuál es tu materia favorita?")
-    comida = st.text_input("¿Cuál es tu comida favorita?")
-    fortalezas = st.text_input("¿Cuáles son tus fortalezas?")
-    debilidades = st.text_input("¿Qué aspectos quieres mejorar?")
-    personalidad = st.text_input(
-        "Descríbete en tres palabras"
-    )
+    musica = st.text_input("Canción o género musical favorito")
+    pelicula = st.text_input("Películas favoritas")
+    deporte = st.text_input("Deporte favorito")
+    materia = st.text_input("Materia favorita")
+    comida = st.text_input("Comida favorita")
+    fortalezas = st.text_input("Fortalezas")
+    debilidades = st.text_input("Aspectos por mejorar")
+    rasgos = st.text_input("Personalidad en tres palabras")
 
     guardar = st.form_submit_button("Guardar entrevista")
 
@@ -55,110 +52,105 @@ if "entrevistas" not in st.session_state:
     st.session_state.entrevistas = []
 
 if guardar:
-    if all([
-        cancion.strip(), pelicula.strip(), deporte.strip(),
-        materia.strip(), comida.strip(), fortalezas.strip(),
-        debilidades.strip(), personalidad.strip()
-    ]):
-        st.session_state.entrevistas.append({
-            "nombre": nombre.strip() or
-                      f"Compañero {len(st.session_state.entrevistas)+1}",
-            "cancion": cancion,
-            "pelicula": pelicula,
-            "deporte": deporte,
-            "materia": materia,
-            "comida": comida,
-            "fortalezas": fortalezas,
-            "debilidades": debilidades,
-            "personalidad": personalidad
-        })
-        st.success("¡Entrevista guardada!")
-    else:
-        st.warning("Completa todas las preguntas antes de guardar.")
-
-# CONSTRUIR PERSONALIDAD COLECTIVA
-def gustos(campo):
     respuestas = [
-        persona[campo].strip()
+        musica, pelicula, deporte, materia, comida,
+        fortalezas, debilidades, rasgos
+    ]
+
+    if all(r.strip() for r in respuestas):
+        st.session_state.entrevistas.append({
+            "Compañero": nombre.strip() or "Anónimo",
+            "Música": musica,
+            "Películas": pelicula,
+            "Deportes": deporte,
+            "Materias": materia,
+            "Comidas": comida,
+            "Fortalezas": fortalezas,
+            "Por mejorar": debilidades,
+            "Personalidad": rasgos
+        })
+        st.sidebar.success("¡Entrevista guardada!")
+    else:
+        st.sidebar.warning("Completa todas las preguntas.")
+
+# CREAR LA PERSONALIDAD COLECTIVA
+def obtener_datos(campo):
+    datos = [
+        persona[campo]
         for persona in st.session_state.entrevistas
         if persona[campo].strip()
     ]
-    if not respuestas:
-        return "Todavía no hay respuestas registradas"
-    return "; ".join(respuestas)
+    if not datos:
+        return "Aún no hay datos. Registra entrevistas."
+    return ", ".join(datos)
 
-musica = gustos("cancion")
-peliculas = gustos("pelicula")
-deportes = gustos("deporte")
-materias = gustos("materia")
-comidas = gustos("comida")
-fortalezas_grupo = gustos("fortalezas")
-mejoras = gustos("debilidades")
-rasgos = gustos("personalidad")
-
-# RESPUESTAS DEL CHATBOT
 def responder(pregunta):
     p = pregunta.lower()
 
     if any(x in p for x in ["hola", "buenas", "hey"]):
         return (
-            "¡Holaaa! Soy el Chatbot del Salón. "
-            "Tengo una personalidad construida con las "
-            "respuestas de nuestros compañeros. ¿De qué hablamos?"
+            "¡Hola! Soy Voces del Salón, un chatbot amigable, "
+            "creativo y respetuoso. Mi personalidad se basa "
+            "en las respuestas de los compañeros."
         )
 
-    if any(x in p for x in ["canción", "canciones", "música", "cantante"]):
-        return f"Los gustos musicales registrados son: {musica}."
+    if any(x in p for x in ["música", "musica", "canción", "canciones"]):
+        return "Los gustos musicales del grupo son: " + obtener_datos("Música")
 
-    if any(x in p for x in ["película", "películas", "cine"]):
-        return f"Estas son las películas favoritas registradas: {peliculas}."
+    if any(x in p for x in ["película", "peliculas", "películas", "cine"]):
+        return "Las películas favoritas son: " + obtener_datos("Películas")
 
-    if any(x in p for x in ["deporte", "deportes", "fútbol", "jugar"]):
-        return f"En las entrevistas aparecen estos deportes: {deportes}."
+    if any(x in p for x in ["deporte", "fútbol", "deportes"]):
+        return "Los deportes favoritos son: " + obtener_datos("Deportes")
 
-    if any(x in p for x in ["materia", "asignatura", "clase favorita"]):
-        return f"Las materias mencionadas por el grupo son: {materias}."
+    if any(x in p for x in ["materia", "asignatura", "clase"]):
+        return "Las materias favoritas son: " + obtener_datos("Materias")
 
-    if any(x in p for x in ["comida", "comer", "plato favorito"]):
-        return f"Entre las comidas favoritas están: {comidas}."
+    if any(x in p for x in ["comida", "comer", "plato"]):
+        return "Las comidas favoritas son: " + obtener_datos("Comidas")
 
-    if any(x in p for x in ["fortaleza", "fortalezas", "habilidad"]):
-        return f"Estas son algunas fortalezas mencionadas: {fortalezas_grupo}."
+    if any(x in p for x in ["fortaleza", "habilidades"]):
+        return "Las fortalezas del grupo son: " + obtener_datos("Fortalezas")
 
-    if any(x in p for x in ["debilidad", "debilidades", "mejorar"]):
+    if any(x in p for x in ["debilidad", "mejorar"]):
         return (
-            f"Los aspectos que los compañeros quieren mejorar son: {mejoras}. "
-            "Todos podemos aprender y desarrollar nuevas habilidades."
+            "Los aspectos que los compañeros quieren mejorar son: "
+            + obtener_datos("Por mejorar")
+            + ". Reconocerlos nos ayuda a aprender."
         )
 
-    if any(x in p for x in ["personalidad", "cómo eres", "quién eres"]):
+    if any(x in p for x in ["personalidad", "quién eres", "quien eres"]):
         return (
-            f"Los compañeros se describieron así: {rasgos}. "
-            "Mi estilo es juvenil, amigable, respetuoso y creativo."
+            "Los compañeros describieron su personalidad así: "
+            + obtener_datos("Personalidad")
+            + ". Mi estilo es juvenil, amigable y colaborativo."
         )
 
     if any(x in p for x in ["compañeros", "entrevistas", "grupo"]):
         return (
             f"He registrado {len(st.session_state.entrevistas)} entrevistas. "
-            "Represento las respuestas recopiladas, aunque no todos "
-            "los compañeros tienen los mismos gustos."
+            "Represento los gustos recopilados, aunque no todos "
+            "tenemos las mismas preferencias."
         )
 
     if any(x in p for x in ["chatbot", "parecido", "similitud"]):
         return (
             "Me parezco a Character.AI porque tengo una personalidad "
-            "definida para conversar. La diferencia es que represento "
-            "los gustos recopilados de un grupo escolar."
+            "definida para conversar. La diferencia es que yo represento "
+            "los gustos de un grupo escolar."
         )
 
+    if any(x in p for x in ["gracias", "chao", "adiós", "adios"]):
+        return "¡Con gusto! Gracias por conversar conmigo. ¡Hasta pronto!"
+
     return (
-        "¡Qué interesante! Puedes preguntarme sobre música, películas, "
+        "¡Qué interesante! Puedes preguntarme por música, películas, "
         "deportes, materias, comidas, fortalezas o personalidad."
     )
 
-# MOSTRAR INFORMACIÓN
+# MOSTRAR ENTREVISTAS
 st.header("📊 Resultados de las entrevistas")
-st.metric("Entrevistas registradas", len(st.session_state.entrevistas))
+st.metric("Compañeros entrevistados", len(st.session_state.entrevistas))
 
 if st.session_state.entrevistas:
     st.dataframe(
@@ -166,9 +158,10 @@ if st.session_state.entrevistas:
         use_container_width=True
     )
 else:
-    st.info("Registra entrevistas desde el menú lateral para construir la personalidad.")
+    st.info("Registra las entrevistas desde el menú lateral.")
 
-st.header("💬 Conversa con nuestro chatbot")
+# CHAT POR TEXTO
+st.header("💬 Habla con el chatbot")
 
 if "mensajes" not in st.session_state:
     st.session_state.mensajes = []
@@ -177,10 +170,11 @@ for mensaje in st.session_state.mensajes:
     with st.chat_message(mensaje["rol"]):
         st.write(mensaje["texto"])
 
-pregunta = st.chat_input("Escribe tu pregunta...")
+pregunta = st.chat_input("Escribe tu pregunta aquí...")
 
 if pregunta:
     respuesta = responder(pregunta)
+
     st.session_state.mensajes.append({
         "rol": "user",
         "texto": pregunta
@@ -191,40 +185,50 @@ if pregunta:
     })
     st.rerun()
 
+# CHAT POR VOZ
 st.divider()
-st.subheader("🎤 Chatbot de voz")
+st.header("🎤 Chatbot de voz")
 
-audio = st.audio_input("Graba una pregunta con tu voz")
+st.write("Graba una pregunta y el chatbot responderá hablando.")
 
-if st.button("Reconocer y responder") and audio is not None:
-    try:
-        reconocedor = sr.Recognizer()
+audio = st.audio_input("Graba tu pregunta")
 
-        with sr.AudioFile(io.BytesIO(audio.getvalue())) as fuente:
-            datos_audio = reconocedor.record(fuente)
+if st.button("Reconocer voz y responder"):
+    if audio is None:
+        st.warning("Primero debes grabar una pregunta.")
+    else:
+        try:
+            reconocedor = sr.Recognizer()
 
-        pregunta_voz = reconocedor.recognize_google(
-            datos_audio,
-            language="es-CO"
-        )
-        respuesta_voz = responder(pregunta_voz)
+            with sr.AudioFile(io.BytesIO(audio.getvalue())) as fuente:
+                grabacion = reconocedor.record(fuente)
 
-        st.write("**Pregunta reconocida:**", pregunta_voz)
-        st.write("**Respuesta:**", respuesta_voz)
+            pregunta_voz = reconocedor.recognize_google(
+                grabacion,
+                language="es-CO"
+            )
 
-        voz = gTTS(text=respuesta_voz, lang="es")
-        archivo = io.BytesIO()
-        voz.write_to_fp(archivo)
+            respuesta_voz = responder(pregunta_voz)
 
-        st.audio(archivo.getvalue(), format="audio/mpeg")
+            st.write("**Tu pregunta:**", pregunta_voz)
+            st.write("**Respuesta del chatbot:**", respuesta_voz)
 
-    except sr.UnknownValueError:
-        st.warning("No se entendió el audio. Intenta grabarlo nuevamente.")
-    except Exception:
-        st.error(
-            "No se pudo procesar la voz. Revisa tu conexión "
-            "a internet y los permisos del micrófono."
-        )
+            voz = gTTS(text=respuesta_voz, lang="es")
+            audio_respuesta = io.BytesIO()
+            voz.write_to_fp(audio_respuesta)
+
+            st.audio(
+                audio_respuesta.getvalue(),
+                format="audio/mpeg"
+            )
+
+        except sr.UnknownValueError:
+            st.warning("No se entendió la grabación. Inténtalo otra vez.")
+        except Exception as error:
+            st.error(
+                "No se pudo procesar el audio. Verifica tu conexión "
+                "a internet y los permisos del micrófono."
+            )
 
 # COMPARACIÓN CON OTROS CHATBOTS
 st.divider()
@@ -232,20 +236,16 @@ st.header("🤖 Comparación con otros chatbots")
 
 st.subheader("Character.AI")
 st.write(
-    "Se parece a nuestro proyecto porque permite crear personajes "
-    "con una personalidad definida y conversar con ellos. Nuestro "
-    "chatbot se diferencia porque su personalidad se construye con "
-    "las respuestas de los compañeros entrevistados."
+    "Se parece a nuestro chatbot porque permite crear personajes "
+    "con una personalidad definida. La diferencia es que Voces "
+    "del Salón se construye a partir de entrevistas escolares."
 )
 
 st.subheader("Replika")
 st.write(
-    "Se parece porque busca mantener conversaciones cercanas y "
-    "personalizadas. Nuestro proyecto tiene un propósito escolar "
-    "y representa los gustos compartidos del grupo."
+    "Se parece porque está orientado a mantener conversaciones "
+    "cercanas y personalizadas. Nuestro proyecto representa los "
+    "gustos y características recopilados de un grupo."
 )
 
-st.success(
-    "Proyecto terminado: recopila entrevistas, construye una "
-    "personalidad colectiva y permite conversar por texto y voz."
-)
+st.success("¡Voces del Salón está listo para probarse!")
