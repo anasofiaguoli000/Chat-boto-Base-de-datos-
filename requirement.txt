@@ -1,1 +1,6 @@
-streamlit
+ streamlit as st
+ ollama
+whisper
+ gTTS
+tempfile
+ os
