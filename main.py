@@ -10,7 +10,7 @@ st.set_page_config(
     layout="centered"
 )
 
-API_KEY = 'TU_API_KEY_AQUI'   # https://console.groq.com/keys
+API_KEY = 'sk-183907cf2f924829ab86fc1ff9287216'   # https://console.groq.com/keys
 API_URL = 'https://api.groq.com/openai/v1/chat/completions'
 MODELO = 'llama-3.3-70b-versatile'
 
