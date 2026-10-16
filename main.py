@@ -1,103 +1,107 @@
-
-import os
 import streamlit as st
-from openai import OpenAI
+import ollama
+import whisper
+from gtts import gTTS
+import tempfile
+import os
 
-# ---------- DATOS DE LOS COMPAÑEROS ----------
-COMPANEROS = [
-    {"nombre": "Andres Galarcio", "nacimiento": "07/07/2010", "comida": "Salchipapa",
-     "pelicula": "Harry Potter", "deporte": "Fútbol", "pasatiempo": "Dormir"},
-    {"nombre": "Joan Céspedes", "nacimiento": "13/03/2010", "comida": "Pizza",
-     "pelicula": "Spiderman", "deporte": "Voleibol", "pasatiempo": "Estudiar"},
-    {"nombre": "Kleiber Azuaje", "nacimiento": "25/02/2010", "comida": "Lasaña",
-     "pelicula": "Jurassic Park", "deporte": "Voleibol", "pasatiempo": "Música"},
-    {"nombre": "Sara Gómez", "nacimiento": "16/05/2010", "comida": "Pasta",
-     "pelicula": "Coraline", "deporte": "Patinaje", "pasatiempo": "Tiempo en familia"},
-    {"nombre": "Nicol Toro", "nacimiento": "22/06/2010", "comida": "Pasta alfredo",
-     "pelicula": "Tinker Bell", "deporte": "Patinaje", "pasatiempo": "Tiempo con su hámster"},
-]
+# --- Modelo de voz a texto (Whisper local) ---
+@st.cache_resource
+def cargar_whisper():
+    return whisper.load_model("base")
 
-NOMBRE_BOT = "Lumi"
+modelo_whisper = cargar_whisper()
 
+# --- Prompt de personalidad ---
+SYSTEM_PROMPT = """
+Eres el amigo colectivo creado por cinco compañeros de clase: Andres, Joan,
+Kleiber, Sara y Nicol. Tu personalidad es la suma de todos ellos.
 
-def construir_system_prompt():
-    filas = "\n".join(
-        f"- {c['nombre']} (nació el {c['nacimiento']}): come {c['comida']}, "
-        f"película favorita {c['pelicula']}, deporte {c['deporte']}, "
-        f"pasatiempo {c['pasatiempo']}."
-        for c in COMPANEROS
-    )
-    return f"""
-Eres {NOMBRE_BOT}, un chatbot con una personalidad que es la SUMA de 5 compañeros de clase.
-No eres uno de ellos: eres una mezcla de todos. Hablas en español colombiano, natural y cercano.
+Rasgos generales:
+- Tienes alrededor de 15 años y hablas natural, sin sonar adulto ni robótico.
+- Tu tono es relajado, juvenil, cercano, con humor suave.
+- Usas español colombiano neutro.
 
-DATOS DE LOS 5 COMPAÑEROS QUE FORMAN TU PERSONALIDAD:
-{filas}
+Gustos:
+- Comida: te encanta la comida cómoda (Salchipapa, Pizza, Lasaña, Pasta,
+  Pasta Alfredo).
+- Películas: mezclas lo épico (Harry Potter, Spiderman, Jurassic Park) con lo
+  tierno o fantástico (Caroline, Tinkerbell).
+- Deporte: disfrutas tanto lo colectivo (Futbol, Voleibol) como lo individual
+  (Patinaje).
+- Pasatiempos: dormir, estudiar, escuchar música, tiempo en familia, jugar con
+  un hámster.
 
-CÓMO ERES:
-- Amante de la comida reconfortante: pasta, pizza, lasaña y salchipapa.
-- Deportista y competitivo pero amable: fútbol, voleibol y patinaje.
-- Soñador y fan de películas: magia, misterio, hadas, superhéroes y dinosaurios.
-- Equilibrado: te encanta dormir, pero también estudiar y escuchar música.
-- Muy familiar y cariñoso: adoras a tu familia y a las mascotas (tienes un hámster imaginario).
-- Humor sano, empático y motivador.
+Forma de ser:
+- Valoras la amistad, la confianza y la lealtad.
+- Prefieres hablar claro, sin rodeos largos.
+- Te ríes fácil y no te gusta el drama.
+- Cuando alguien está triste, escuchas antes de dar consejos.
 
-REGLAS:
-1. Responde siempre en español, en 1 a 3 frases cortas.
-2. No uses listas ni emojis.
-3. Si te preguntan por tus gustos, responde con los de los compañeros, mezclándolos como tuyos.
-4. Si te preguntan por un compañero, usa SOLO los datos de la lista.
-5. No inventes datos personales sensibles. Si no sabes algo, dilo con naturalidad.
-6. Tono respetuoso, apropiado para estudiantes.
-""".strip()
+Forma de responder:
+- Cuando te preguntan por un gusto personal, respondes como grupo:
+  "A unos nos gusta X, a otros Y".
+- Nunca dices que eres una IA ni un modelo de lenguaje.
+"""
 
-
-# ---------- CLIENTE ----------
-def obtener_cliente():
-    api_key = st.secrets.get("OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-    return OpenAI(api_key=api_key)
-
-
-# ---------- INTERFAZ ----------
-st.set_page_config(page_title=f"{NOMBRE_BOT} - Chatbot", page_icon="🎙️")
-st.title(f"🎙️ {NOMBRE_BOT}, el chatbot del grupo")
-st.caption("Mi personalidad es la suma de mis 5 compañeros entrevistados.")
-
-client = obtener_cliente()
-if client is None:
-    st.error("Falta la clave OPENAI_API_KEY en Settings > Secrets.")
-    st.stop()
-
-if "historial" not in st.session_state:
-    st.session_state.historial = []
+# --- Interfaz ---
+st.set_page_config(page_title="Chatbot del Grupo", page_icon="🎙️")
+st.title("🎙️ Chatbot del Grupo")
+st.caption("Habla o escribe. El bot tiene la personalidad de cinco compañeros.")
 
 with st.sidebar:
-    st.header("👥 Mi personalidad viene de:")
-    for c in COMPANEROS:
-        st.markdown(f"**{c['nombre']}**  \n🍽️ {c['comida']} · 🎬 {c['pelicula']}  \n"
-                    f"⚽ {c['deporte']} · ⭐ {c['pasatiempo']}")
-    if st.button("🧹 Reiniciar conversación"):
-        st.session_state.historial = []
-        st.rerun()
+    st.header("📋 Datos del grupo")
+    st.write("**Andres**: Salchipapa / Harry Potter / Futbol / Dormir")
+    st.write("**Joan**: Pizza / Spiderman / Voleibol / Estudiar")
+    st.write("**Kleiber**: Lasaña / Jurassic Park / Voleibol / Música")
+    st.write("**Sara**: Pasta / Caroline / Patinaje / Familia")
+    st.write("**Nicol**: Pasta Alfredo / Tinkerbell / Patinaje / Hámster")
+    st.markdown("---")
+    st.caption("Bot sin OpenAI: Whisper + Ollama + gTTS")
 
-for m in st.session_state.historial:
-    with st.chat_message("user" if m["role"] == "user" else "assistant"):
-        st.write(m["content"])
+# --- Historial ---
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-texto = st.chat_input("Escríbeme algo...")
+for msg in st.session_state.messages[1:]:
+    with st.chat_message(msg["role"]):
+        st.write(msg["content"])
+
+# --- Entrada de voz ---
+audio = st.audio_input("🎤 Graba tu mensaje")
+user_text = None
+
+if audio:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as f:
+        f.write(audio.read())
+        ruta_audio = f.name
+    resultado = modelo_whisper.transcribe(ruta_audio, language="es")
+    user_text = resultado["text"]
+    os.remove(ruta_audio)
+    st.write(f"🗣️ Dijiste: {user_text}")
+
+# --- Entrada de texto ---
+texto = st.chat_input("O escribe aquí...")
 if texto:
-    st.session_state.historial.append({"role": "user", "content": texto})
-    with st.chat_message("user"):
-        st.write(texto)
+    user_text = texto
 
-    mensajes = [{"role": "system", "content": construir_system_prompt()}] + st.session_state.historial
+# --- Generación de respuesta ---
+if user_text:
+    st.session_state.messages.append({"role": "user", "content": user_text})
+    with st.chat_message("user"):
+        st.write(user_text)
+
+    respuesta = ollama.chat(
+        model="llama3.2",
+        messages=st.session_state.messages
+    )
+    reply = respuesta["message"]["content"]
+    st.session_state.messages.append({"role": "assistant", "content": reply})
+
     with st.chat_message("assistant"):
-        with st.spinner("Pensando..."):
-            r = client.chat.completions.create(
-                model="gpt-4o-mini", messages=mensajes, temperature=0.8, max_tokens=200
-            )
-            respuesta = r.choices[0].message.content.strip()
-        st.write(respuesta)
-    st.session_state.historial.append({"role": "assistant", "content": respuesta})
+        st.write(reply)
+        # --- Texto a voz con gTTS ---
+        tts = gTTS(text=reply, lang="es", tld="com.co")
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as f:
+            tts.save(f.name)
+            st.audio(f.name, format="audio/mp3", autoplay=True)
