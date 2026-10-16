@@ -1,5 +1,2 @@
-rt streamlit as st
- requests
- edge_tts
- tempfile
- os
+ streamlit as st
+requests
